@@ -1,334 +1,467 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>VideoCheck - AI Video Detector</title>
-
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Detect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: rgba(255, 255, 255, 0.03);
+    --surface-hover: rgba(255, 255, 255, 0.05);
+    --surface-solid: #161619;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    
+    --text: #ffffff;
+    --text-dim: #a1a1aa;
+    --text-faint: #52525b;
+    
+    --amber: #f59e0b;
+    --amber-bg: rgba(245, 158, 11, 0.1);
+    
+    --emerald: #10b981;
+    --emerald-bg: rgba(16, 185, 129, 0.1);
+    
+    --red: #ef4444;
+    --red-bg: rgba(239, 68, 68, 0.1);
+    
+    --mono: 'JetBrains Mono', monospace;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: 
+      radial-gradient(circle at 15% -10%, rgba(16, 185, 129, 0.08), transparent 40%),
+      radial-gradient(circle at 85% 110%, rgba(245, 158, 11, 0.05), transparent 40%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  
+  .wrap {
+    max-width: 480px;
+    width: 100%;
+  }
+  
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    font-weight: 600;
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .eyebrow .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 10px var(--emerald);
+  }
+  
+  h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 0 0 12px;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+  }
+  
+  p.sub {
+    color: var(--text-dim);
+    font-size: 15px;
+    margin: 0 0 36px;
+    max-width: 42ch;
+  }
+  
+  .card {
+    background: var(--surface);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 32px 64px -24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  
+  .drop {
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    background: rgba(255, 255, 255, 0.01);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .drop:hover, .drop.drag {
+    border-color: var(--emerald);
+    background: var(--emerald-bg);
+    transform: translateY(-2px);
+  }
+  
+  .drop.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(1);
+  }
+  
+  .drop input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .drop-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--text-dim);
+    transition: color 0.2s;
+  }
+  
+  .drop:hover .drop-icon, .drop.drag .drop-icon {
+    color: var(--emerald);
+  }
+  
+  .drop-text {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  
+  .btn-browse {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    pointer-events: none; /* Let the parent label handle clicks */
+  }
+  
+  .drop:hover .btn-browse, .drop.drag .btn-browse {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+  }
+  
+  .formats {
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  
+  #preview {
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 12px;
+    margin-top: 24px;
+    display: none;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  
+  .status-container {
+    display: none;
+    margin-top: 24px;
+  }
+  
+  .status-container.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  #status {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  
+  #bar {
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  #barFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--emerald), #34d399);
+    border-radius: 4px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  #result {
+    margin-top: 24px;
+    display: none;
+  }
+  
+  #result.show {
+    display: block;
+    animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  
+  .verdict .vdot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  
+  .ai { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
+  .ai .vdot { background: var(--red); box-shadow: 0 0 12px var(--red); }
+  
+  .real { background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+  .real .vdot { background: var(--emerald); box-shadow: 0 0 12px var(--emerald); }
+  
+  .unsure { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.2); }
+  .unsure .vdot { background: var(--amber); box-shadow: 0 0 12px var(--amber); }
+  
+  .confidence {
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+    padding-left: 2px;
+  }
+  
+  .confidence b { color: var(--text); font-weight: 600; }
+  
+  #resetBtn {
+    width: 100%;
+    margin-top: 24px;
+    background: var(--surface-solid);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Inter', sans-serif;
+  }
+  
+  #resetBtn:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+  
+  .note {
+    color: var(--text-faint);
+    font-size: 12px;
+    margin-top: 24px;
+    line-height: 1.6;
+    text-align: center;
+  }
+</style>
 </head>
-
 <body>
-
-    <!-- NAVBAR -->
-
-    <header class="navbar">
-
-        <div class="logo">
-            VideoCheck
-        </div>
-
-        <nav>
-            <a href="#home">Home</a>
-            <a href="#how">How it works</a>
-            <a href="#about">About</a>
-        </nav>
-
-    </header>
-
-
-    <!-- HERO -->
-
-    <main id="home">
-
-        <section class="hero">
-
-            <div class="hero-text">
-
-                <p class="tag">
-                    VIDEO AUTHENTICITY CHECKER
-                </p>
-
-                <h1>
-                    Is this video<br>
-                    <span>real or AI-generated?</span>
-                </h1>
-
-                <p class="description">
-                    Upload a video and our detection system will
-                    analyze selected frames to estimate whether
-                    the video is AI-generated or real.
-                </p>
-
-            </div>
-
-
-            <!-- UPLOAD BOX -->
-
-            <div class="upload-box">
-
-                <div class="upload-icon">
-                    ↑
-                </div>
-
-                <h2>
-                    Upload your video
-                </h2>
-
-                <p>
-                    MP4, MOV or AVI files
-                </p>
-
-                <input
-                    type="file"
-                    id="videoInput"
-                    accept="video/*"
-                    hidden
-                >
-
-                <button
-                    id="chooseBtn"
-                    class="choose-btn"
-                >
-                    Choose Video
-                </button>
-
-                <p
-                    id="fileName"
-                    class="file-name"
-                >
-                    No video selected
-                </p>
-
-                <button
-                    id="analyzeBtn"
-                    class="analyze-btn"
-                    disabled
-                >
-                    Analyze Video
-                </button>
-
-                <div
-                    id="loading"
-                    class="loading"
-                    style="display:none;"
-                >
-                    Analyzing video...
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- RESULT -->
-
-        <section
-            id="resultCard"
-            class="result-section"
-            style="display:none;"
-        >
-
-            <div class="result-header">
-
-                <div>
-                    <p class="small-heading">
-                        ANALYSIS RESULT
-                    </p>
-
-                    <h2 id="prediction">
-                        AI-GENERATED
-                    </h2>
-                </div>
-
-            </div>
-
-
-            <div class="scores">
-
-                <div class="score-box">
-
-                    <p>
-                        AI probability
-                    </p>
-
-                    <strong id="aiScore">
-                        0%
-                    </strong>
-
-                    <div class="progress">
-                        <div
-                            id="aiProbability"
-                            class="progress-fill"
-                            style="width:0%"
-                        ></div>
-                    </div>
-
-                </div>
-
-
-                <div class="score-box">
-
-                    <p>
-                        Real probability
-                    </p>
-
-                    <strong id="realScore">
-                        0%
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- DETAILS -->
-
-            <div class="details">
-
-                <div>
-                    <span>Frames analyzed</span>
-                    <strong id="framesAnalyzed">0</strong>
-                </div>
-
-                <div>
-                    <span>Video duration</span>
-                    <strong id="duration">0 sec</strong>
-                </div>
-
-                <div>
-                    <span>Confidence</span>
-                    <strong id="confidence">0%</strong>
-                </div>
-
-            </div>
-
-
-            <button
-                id="resetBtn"
-                class="reset-btn"
-            >
-                Analyze another video
-            </button>
-
-        </section>
-
-
-        <!-- HOW IT WORKS -->
-
-        <section
-            id="how"
-            class="how-section"
-        >
-
-            <p class="small-heading">
-                HOW IT WORKS
-            </p>
-
-            <h2>
-                Simple three-step process
-            </h2>
-
-
-            <div class="steps">
-
-                <div class="step">
-
-                    <div class="number">
-                        1
-                    </div>
-
-                    <h3>
-                        Upload
-                    </h3>
-
-                    <p>
-                        Select a video from your device.
-                    </p>
-
-                </div>
-
-
-                <div class="step">
-
-                    <div class="number">
-                        2
-                    </div>
-
-                    <h3>
-                        Analyze
-                    </h3>
-
-                    <p>
-                        The system checks selected frames
-                        using an AI detection model.
-                    </p>
-
-                </div>
-
-
-                <div class="step">
-
-                    <div class="number">
-                        3
-                    </div>
-
-                    <h3>
-                        Get result
-                    </h3>
-
-                    <p>
-                        View the estimated AI and real
-                        probabilities.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- ABOUT -->
-
-        <section
-            id="about"
-            class="about-section"
-        >
-
-            <p class="small-heading">
-                ABOUT THE PROJECT
-            </p>
-
-            <h2>
-                Built for detecting manipulated media
-            </h2>
-
-            <p>
-                VideoCheck is a student-built hackathon project
-                designed to help users quickly check the
-                authenticity of online videos.
-            </p>
-
-            <p class="note">
-                The result is an AI-based estimate and should not
-                be considered absolute proof of authenticity.
-            </p>
-
-        </section>
-
-    </main>
-
-
-    <!-- FOOTER -->
-
-    <footer>
-
-        <p>
-            VideoCheck © 2026
-        </p>
-
-        <p>
-            Hackathon Project
-        </p>
-
-    </footer>
-
-
-    <script src="script.js"></script>
-
+<div class="wrap">
+  <p class="eyebrow"><span class="dot"></span>Runs locally</p>
+  <h1>Image Detect</h1>
+  <p class="sub">Upload an image to check for AI-generation signs. The Vision Transformer model runs entirely in your browser.</p>
+  
+  <div class="card">
+    <label class="drop" id="dropZone">
+      <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+      <div class="drop-text">Drag & drop image or</div>
+      <div class="btn-browse">Browse files</div>
+      <div class="formats">Supports JPG, PNG, WEBP</div>
+      <input type="file" id="imageFile" accept="image/*">
+    </label>
+    
+    <img id="preview">
+    
+    <div class="status-container" id="statusContainer">
+      <div id="status">
+        <span id="statusText">Loading...</span>
+        <span id="statusPct"></span>
+      </div>
+      <div id="bar"><div id="barFill"></div></div>
+    </div>
+    
+    <div id="result"></div>
+  </div>
+  
+  <p class="note">First run downloads the detection model (~11.8MB, cached thereafter).<br>Model: ai-image-detect-distilled (ViT), via Transformers.js.</p>
+</div>
+
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+env.allowLocalModels = false;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('imageFile');
+const preview = document.getElementById('preview');
+const statusContainer = document.getElementById('statusContainer');
+const statusText = document.getElementById('statusText');
+const statusPct = document.getElementById('statusPct');
+const barFill = document.getElementById('barFill');
+const result = document.getElementById('result');
+
+let classifierPromise = null;
+function getClassifier() {
+  if (!classifierPromise) {
+    dropZone.classList.add('disabled');
+    statusContainer.classList.add('show');
+    statusText.textContent = 'Downloading model...';
+    statusPct.textContent = '0%';
+    barFill.style.width = '0%';
+    
+    classifierPromise = pipeline('image-classification', 'onnx-community/ai-image-detect-distilled-ONNX', {
+      progress_callback: (p) => {
+        if (p.status === 'progress' && p.total) {
+          const pct = Math.round((p.loaded / p.total) * 100);
+          barFill.style.width = pct + '%';
+          statusPct.textContent = pct + '%';
+        }
+      }
+    }).then(c => {
+      statusContainer.classList.remove('show');
+      dropZone.classList.remove('disabled');
+      return c;
+    });
+  }
+  return classifierPromise;
+}
+
+['dragover','dragenter'].forEach(evt => dropZone.addEventListener(evt, e => { 
+  e.preventDefault(); 
+  dropZone.classList.add('drag'); 
+}));
+['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, () => dropZone.classList.remove('drag')));
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) { 
+    fileInput.files = e.dataTransfer.files; 
+    handleFile(e.dataTransfer.files[0]); 
+  }
+});
+
+fileInput.addEventListener('change', () => { 
+  if (fileInput.files[0]) handleFile(fileInput.files[0]); 
+});
+
+function resetUI() {
+  preview.style.display = 'none';
+  preview.src = '';
+  result.classList.remove('show');
+  result.innerHTML = '';
+  statusContainer.classList.remove('show');
+  fileInput.value = '';
+  fileInput.click();
+}
+
+async function handleFile(file) {
+  dropZone.style.display = 'none';
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  result.classList.remove('show');
+  
+  statusContainer.classList.add('show');
+  statusText.textContent = 'Analyzing image...';
+  statusPct.textContent = '';
+  barFill.style.width = '100%';
+
+  try {
+    const classifier = await getClassifier();
+    
+    // Briefly show analyzing state if model was already loaded
+    statusContainer.classList.add('show');
+    statusText.textContent = 'Analyzing image...';
+    statusPct.textContent = '';
+    
+    const output = await classifier(preview.src);
+    const top = output.reduce((a, b) => (b.score > a.score ? b : a));
+    const isFakeLabel = /fake|ai[\s_-]?gen|artificial|synthetic|deepfake/i.test(top.label);
+    const pct = (top.score * 100).toFixed(1);
+
+    let cls, label;
+    if (isFakeLabel) {
+      if (top.score >= 0.90) { cls = 'ai'; label = 'AI GENERATED'; }
+      else if (top.score >= 0.70) { cls = 'ai'; label = 'LIKELY AI GEN'; }
+      else { cls = 'unsure'; label = 'LEANING AI GEN'; }
+    } else {
+      if (top.score >= 0.90) { cls = 'real'; label = 'REAL'; }
+      else if (top.score >= 0.70) { cls = 'real'; label = 'LIKELY REAL'; }
+      else { cls = 'unsure'; label = 'LEANING REAL'; }
+    }
+
+    result.innerHTML = `
+      <div class="verdict ${cls}">
+        <span class="vdot"></span>${label}
+      </div>
+      <div class="confidence">Confidence: <b>${pct}%</b></div>
+      <button id="resetBtn">Check another image</button>
+    `;
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      dropZone.style.display = 'flex';
+      resetUI();
+    });
+    
+    statusContainer.classList.remove('show');
+    result.classList.add('show');
+  } catch (err) {
+    statusText.textContent = 'Error: ' + err.message;
+    statusPct.textContent = '';
+  }
+}
+</script>
 </body>
-
 </html>
