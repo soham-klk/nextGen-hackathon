@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offer Check — spot a fake job before it costs you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0a0b;
+    --bg-grain: #0c0c0d;
+    --surface: #17171a;
+    --surface-2: #1e1e22;
+    --border: #2b2b2f;
+    --border-soft: #232326;
+    --text: #ece9e2;
+    --text-dim: #97948d;
+    --text-faint: #5c5a56;
+    --amber: #f2a93b;
+    --amber-dim: #7a5b22;
+    --red: #e2564a;
+    --red-dim: #4a2320;
+    --green: #55b587;
+    --green-dim: #1f3d2d;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(242,169,59,0.045), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(242,169,59,0.03), transparent 45%);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection{ background: var(--amber); color:#0a0a0b; }
+
+  a{ color: var(--amber); }
+
+  .wrap{
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 64px 24px 100px;
+  }
+
+  /* ---------- header / case-file strip ---------- */
+  .case-strip{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 14px;
+    margin-bottom: 40px;
+  }
+  .case-strip span.dot{
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background: var(--amber); margin-right:8px;
+    box-shadow: 0 0 8px rgba(242,169,59,0.7);
+  }
+
+  .eyebrow{
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 18px;
+  }
+
+  h1{
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: clamp(32px, 5vw, 48px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 18px;
+  }
+  h1 em{
+    font-style: normal;
+    color: var(--amber);
+  }
+
+  .lede{
+    font-size: 16.5px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 56ch;
+    margin: 0 0 44px;
+  }
+
+  /* ---------- input card ---------- */
+  .scan-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    position: relative;
+  }
+  .scan-card::before{
+    content: "";
+    position:absolute; inset:0;
+    border-radius:10px;
+    border: 1px solid transparent;
+    pointer-events:none;
+  }
+  .field-label{
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+    display:block;
+  }
+  textarea{
+    width:100%;
+    min-height: 108px;
+    resize: vertical;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  textarea::placeholder{ color: var(--text-faint); }
+  textarea:focus{ border-color: var(--amber-dim); }
+
+  .scan-row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    margin-top: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hint{
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  button.scan-btn{
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--amber);
+    color: #0a0a0b;
+    border: none;
+    border-radius: 7px;
+    padding: 13px 22px;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+    white-space: nowrap;
+  }
+  button.scan-btn:hover{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(242,169,59,0.18); }
+  button.scan-btn:active{ transform: translateY(0); }
+  button.scan-btn:disabled{ opacity:.5; cursor:default; transform:none; box-shadow:none; }
+
+  /* ---------- results ---------- */
+  #results{
+    margin-top: 40px;
+    display:none;
+  }
+  #results.show{ display:block; animation: rise .35s ease; }
+  @keyframes rise{ from{ opacity:0; transform: translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  .verdict-panel{
+    display:grid;
+    grid-template-columns: 200px 1fr;
+    gap: 28px;
+    align-items:center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 26px;
+    margin-bottom: 26px;
+  }
+  @media (max-width: 560px){
+    .verdict-panel{ grid-template-columns: 1fr; }
+    .gauge-wrap{ justify-self:center; }
+  }
+
+  .gauge-wrap{ position:relative; width:180px; }
+  .gauge-score{
+    position:absolute;
+    left:0; right:0; top:60%;
+    text-align:center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 30px;
+  }
+  .gauge-score .of{
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    display:block;
+    letter-spacing: 0.1em;
+  }
+
+  .verdict-body .stamp{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border: 1.5px solid currentColor;
+    border-radius: 5px;
+    transform: rotate(-2deg);
+    margin-bottom: 12px;
+  }
+  .verdict-body p{
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  .risk-low   { color: var(--green); }
+  .risk-medium{ color: var(--amber); }
+  .risk-high  { color: var(--red); }
+
+  .flags-title{
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    margin: 0 0 12px;
+  }
+
+  .flag-list{
+    list-style:none;
+    margin:0 0 30px;
+    padding:0;
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .flag-item{
+    display:flex;
+    gap: 12px;
+    align-items:flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--red);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .flag-item.clean{
+    border-left-color: var(--green);
+  }
+  .flag-item .mark{
+    font-family: var(--mono);
+    font-weight: 700;
+    flex-shrink:0;
+    width: 18px;
+    text-align:center;
+  }
+  .flag-item.clean .mark{ color: var(--green); }
+  .flag-item:not(.clean) .mark{ color: var(--red); }
+  .flag-item b{ color: var(--text); }
+
+  /* ---------- tips ---------- */
+  .tips-title{
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    margin: 0 0 14px;
+    border-top: 1px dashed var(--border);
+    padding-top: 34px;
+  }
+  .tips-grid{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  @media (max-width:560px){ .tips-grid{ grid-template-columns: 1fr; } }
+  .tip{
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 16px 16px;
+  }
+  .tip .n{
+    font-family: var(--mono);
+    color: var(--amber);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    display:block;
+    margin-bottom: 6px;
+  }
+  .tip p{
+    margin:0;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+
+  footer{
+    margin-top: 54px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="case-strip">
+    <span><span class="dot"></span>OFFER CHECK</span>
+    <span id="clock"></span>
+  </div>
+
+  <p class="eyebrow">Job scam screener</p>
+  <h1>Before you say yes,<br><em>read the fine print</em> it's hiding.</h1>
+  <p class="lede">Paste the job link, the recruiter's message, or the full posting below. This runs a wording and link-structure check for the patterns fake job listings tend to share — payment requests, impersonated domains, pressure tactics — and shows you exactly what it found.</p>
+
+  <div class="scan-card">
+    <label class="field-label" for="jobInput">Job link or posting text</label>
+    <textarea id="jobInput" placeholder="https://careers-example.com/apply/9284&#10;— or —&#10;paste the full job description / recruiter message here"></textarea>
+    <div class="scan-row">
+      <span class="hint" id="charHint">Works with a bare link or the whole message.</span>
+      <button class="scan-btn" id="scanBtn">Run check →</button>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="verdict-panel">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 180 110" width="180" height="110">
+          <path d="M15,100 A75,75 0 0,1 165,100" fill="none" stroke="#232326" stroke-width="12" stroke-linecap="round"/>
+          <path id="gaugeArc" d="M15,100 A75,75 0 0,1 165,100" fill="none" stroke="#f2a93b" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="235.6" stroke-dashoffset="235.6"/>
+          <g id="needleGroup" transform="rotate(0 90 100)">
+            <line x1="90" y1="100" x2="90" y2="38" stroke="#ece9e2" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="90" cy="100" r="5.5" fill="#ece9e2"/>
+          </g>
+        </svg>
+        <div class="gauge-score"><span id="scoreNum">0</span><span class="of">RISK / 100</span></div>
+      </div>
+      <div class="verdict-body">
+        <div class="stamp" id="stampEl">CLEAR</div>
+        <p id="verdictText">—</p>
+      </div>
+    </div>
+
+    <p class="flags-title">What the scan found</p>
+    <ul class="flag-list" id="flagList"></ul>
+  </div>
+
+  <p class="tips-title">Always worth doing, regardless of score</p>
+  <div class="tips-grid">
+    <div class="tip"><span class="n">→</span><p>Go to the company's own website directly (don't click through) and check the role is listed on their real careers page.</p></div>
+    <div class="tip"><span class="n">→</span><p>Search the recruiter's name plus "scam" or "reddit" — most fake-job patterns get reported fast.</p></div>
+    <div class="tip"><span class="n">→</span><p>A real employer never asks you to pay for training, equipment, or a "starter kit" to begin work.</p></div>
+    <div class="tip"><span class="n">→</span><p>Ask for a call on the company's official number or a verifiable company email — not personal WhatsApp or Telegram.</p></div>
+  </div>
+
+  <footer>
+    This is a heuristic wording &amp; link-pattern check, not a live verification service — it can't fetch or confirm the actual page. Treat a low score as "no obvious red flags," not a guarantee, and use your own judgment alongside it.
+  </footer>
+</div>
+
+<script>
+(function(){
+  const clockEl = document.getElementById('clock');
+  function tick(){
+    const d = new Date();
+    clockEl.textContent = d.toLocaleDateString(undefined,{year:'numeric',month:'2-digit',day:'2-digit'}) + ' — ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  }
+  tick(); setInterval(tick, 30000);
+
+  const input = document.getElementById('jobInput');
+  const btn = document.getElementById('scanBtn');
+  const results = document.getElementById('results');
+  const flagList = document.getElementById('flagList');
+  const scoreNum = document.getElementById('scoreNum');
+  const stampEl = document.getElementById('stampEl');
+  const verdictText = document.getElementById('verdictText');
+  const needleGroup = document.getElementById('needleGroup');
+  const gaugeArc = document.getElementById('gaugeArc');
+
+  const SHORTENERS = ['bit.ly','tinyurl.com','t.co','is.gd','cutt.ly','rebrand.ly','shorturl.at','buff.ly','ow.ly','rb.gy'];
+  const SUS_TLD = ['.xyz','.top','.club','.info','.work','.click','.buzz','.gq','.tk','.ml','.cf','.support','.online','.icu','.rest'];
+  const BRANDS = ['google','amazon','microsoft','linkedin','indeed','apple','meta','facebook','netflix','tesla','walmart','fedex','ups','disney'];
+  const FREE_EMAIL = ['gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com'];
+
+  function extractUrl(text){
+    const m = text.match(/https?:\/\/[^\s]+/i);
+    if(m) return m[0];
+    // bare-domain fallback e.g. "careers-example.com/apply"
+    const m2 = text.match(/\b([a-z0-9-]+\.)+[a-z]{2,}(\/[^\s]*)?\b/i);
+    return m2 ? 'http://' + m2[0] : null;
+  }
+
+  function analyze(raw){
+    const text = raw.trim();
+    const lower = text.toLowerCase();
+    let score = 0;
+    const flags = [];
+
+    const urlStr = extractUrl(text);
+    let host = null;
+    if(urlStr){
+      try{
+        const u = new URL(urlStr);
+        host = u.hostname.toLowerCase();
+
+        if(/^(\d{1,3}\.){3}\d{1,3}$/.test(host)){
+          score += 25; flags.push("Link uses a raw IP address instead of a real company domain.");
+        }
+        if(SHORTENERS.some(s => host === s || host.endsWith('.'+s))){
+          score += 20; flags.push("Link is hidden behind a URL shortener — the real destination is masked.");
+        }
+        if(u.protocol === 'http:'){
+          score += 10; flags.push("Link doesn't use a secure (https) connection.");
+        }
+        if(SUS_TLD.some(t => host.endsWith(t))){
+          score += 15; flags.push(`Domain ends in <b>${host.slice(host.lastIndexOf('.'))}</b>, an unusual TLD favored by throwaway sites.`);
+        }
+        const parts = host.split('.');
+        if(parts.length > 3){
+          score += 10; flags.push("Unusually deep or randomized subdomain structure.");
+        }
+        BRANDS.forEach(b => {
+          if(host.includes(b)){
+            const real = (b==='meta'?'meta.com':b+'.com');
+            if(!(host === real || host.endsWith('.'+real))){
+              score += 25; flags.push(`Domain contains "<b>${b}</b>" but isn't the company's actual domain — a common impersonation trick.`);
+            }
+          }
+        });
+      }catch(e){ /* not a parseable url, skip url checks */ }
+    }
+
+    const PAY_WORDS = ['registration fee','processing fee','training fee','application fee','deposit required','refundable deposit','buy your own equipment','purchase a kit','starter kit','send money','wire transfer','gift card','western union','cash the check','deposit this check'];
+    PAY_WORDS.forEach(w => { if(lower.includes(w)){ score += 25; flags.push(`Mentions "<b>${w}</b>" — legitimate employers never charge you to get hired.`); } });
+
+    const ID_WORDS = ['social security number','ssn ','bank account number','routing number','copy of your id','passport number'];
+    ID_WORDS.forEach(w => { if(lower.includes(w.trim())){ score += 20; flags.push(`Asks for sensitive personal info ("<b>${w.trim()}</b>") before any formal hiring step.`); } });
+
+    const CONTACT_WORDS = ['whatsapp only','contact us on whatsapp','message us on telegram','text this number'];
+    CONTACT_WORDS.forEach(w => { if(lower.includes(w)){ score += 15; flags.push("Pushes the conversation to an unofficial messaging app instead of email or a company line."); } });
+
+    FREE_EMAIL.forEach(dom => {
+      if(new RegExp('hr@[a-z0-9.-]*'+dom.replace('.','\\.')+'|recruiter@[a-z0-9.-]*'+dom.replace('.','\\.')).test(lower) || (lower.includes('@'+dom) && (lower.includes('hr ')||lower.includes('recruit')))){
+        score += 10; flags.push(`Recruiter contact uses a free personal email domain (<b>@${dom}</b>) rather than a company address.`);
+      }
+    });
+
+    const URGENCY = ['immediate start','start today','act now','limited slots','hire immediately','no interview needed','urgent hiring','offer expires today'];
+    URGENCY.forEach(w => { if(lower.includes(w)){ score += 10; flags.push(`Uses pressure language ("<b>${w}</b>") to rush a decision.`); } });
+
+    const TOO_GOOD = ['easy money','work 2 hours','work from home earn','no experience necessary','guaranteed income','$5000 per week','$500 a day'];
+    TOO_GOOD.forEach(w => { if(lower.includes(w)){ score += 12; flags.push(`Phrase "<b>${w}</b>" is a common too-good-to-be-true pay claim.`); } });
+
+    score = Math.min(100, score);
+    return { score, flags, hadInput: text.length>0 };
+  }
+
+  function render(result){
+    results.classList.add('show');
+    const score = result.score;
+    scoreNum.textContent = score;
+
+    // needle: -90deg (0) to +90deg (100)
+    const angle = -90 + (score/100)*180;
+    needleGroup.setAttribute('transform', `rotate(${angle} 90 100)`);
+
+    // arc fill (dasharray length ~235.6 for this path)
+    const total = 235.6;
+    const offset = total - (score/100)*total;
+    gaugeArc.setAttribute('stroke-dashoffset', offset);
+
+    let level, label, color, msg;
+    if(score >= 50){ level='risk-high'; label='HIGH RISK'; color='var(--red)'; msg = 'Multiple strong scam indicators showed up. Treat this offer as very likely fake — do not send money, IDs, or bank details.'; gaugeArc.setAttribute('stroke', '#e2564a'); }
+    else if(score >= 25){ level='risk-medium'; label='USE CAUTION'; color='var(--amber)'; msg = 'A few patterns worth verifying before you go further. Confirm the company and recruiter independently.'; gaugeArc.setAttribute('stroke', '#f2a93b'); }
+    else { level='risk-low'; label='NO FLAGS FOUND'; color='var(--green)'; msg = "Nothing in the wording or link matched common scam patterns. Still verify through the company's own site before sharing any info."; gaugeArc.setAttribute('stroke', '#55b587'); }
+
+    stampEl.className = 'stamp ' + level;
+    stampEl.textContent = label;
+    verdictText.textContent = msg;
+
+    flagList.innerHTML = '';
+    if(result.flags.length === 0){
+      const li = document.createElement('li');
+      li.className = 'flag-item clean';
+      li.innerHTML = `<span class="mark">✓</span><span>No red-flag wording or link patterns detected.</span>`;
+      flagList.appendChild(li);
+    } else {
+      result.flags.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'flag-item';
+        li.innerHTML = `<span class="mark">✕</span><span>${f}</span>`;
+        flagList.appendChild(li);
+      });
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    const val = input.value;
+    if(!val.trim()){
+      input.style.borderColor = 'var(--red)';
+      setTimeout(()=> input.style.borderColor = '', 900);
+      return;
+    }
+    const result = analyze(val);
+    render(result);
+    results.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)) btn.click();
+  });
+})();
+</script>
+</body>
+</html>

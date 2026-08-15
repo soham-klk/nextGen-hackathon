@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Detect — no key needed</title>
+<style>
+  :root{--bg:#0a0a0b;--surface:#17171a;--border:#2b2b2f;--text:#ece9e2;--text-dim:#97948d;--amber:#f2a93b;--red:#e2564a;--green:#55b587;--mono:'Courier New',monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,sans-serif;padding:32px 20px}
+  .wrap{max-width:520px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px}
+  p.sub{color:var(--text-dim);font-size:13.5px;margin:0 0 24px;line-height:1.5}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+  input[type=file]{width:100%;margin-bottom:14px;font-size:13px;color:var(--text-dim)}
+  #preview{max-width:100%;max-height:220px;border-radius:8px;margin-bottom:14px;display:none}
+  #result{margin-top:16px;display:none;font-family:var(--mono);font-size:13.5px;text-align:left}
+  #result.show{display:block}
+  .verdict{font-weight:700;font-size:16px;padding:8px 12px;border-radius:6px;display:inline-block;margin-bottom:10px}
+  .ai{background:rgba(226,86,74,.15);color:var(--red)}
+  .real{background:rgba(85,181,135,.15);color:var(--green)}
+  .unsure{background:rgba(242,169,59,.15);color:var(--amber)}
+  ul{margin:8px 0 0;padding-left:18px;color:var(--text-dim);font-size:12.5px;line-height:1.6}
+  .note{color:var(--text-dim);font-size:11.5px;margin-top:20px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Image Detect</h1>
+  <p class="sub">Upload an image, get an instant AI-generated check. No key, no signup, runs fully in your browser.</p>
+  <div class="card">
+    <input type="file" id="imageFile" accept="image/*">
+    <img id="preview">
+    <div id="result"></div>
+  </div>
+  <p class="note">This checks the image's metadata (camera info, EXIF data) — real photos usually carry it, AI-generated / edited / screenshotted / WhatsApp-compressed images usually don't. It's a signal, not a lab-grade verdict.</p>
+</div>
+<script>
+document.getElementById('imageFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+
+  const result = document.getElementById('result');
+  result.classList.add('show');
+  result.innerHTML = 'Checking...';
+
+  const buf = await file.arrayBuffer();
+  const view = new DataView(buf);
+  const reasons = [];
+  let hasExif = false;
+  let hasCameraTag = false;
+
+  // Scan for EXIF marker (0xFFE1) in JPEGs
+  if (view.getUint16(0) === 0xFFD8) {
+    let offset = 2;
+    while (offset < view.byteLength - 1) {
+      const marker = view.getUint16(offset);
+      if (marker === 0xFFE1) {
+        hasExif = true;
+        const segLen = view.getUint16(offset + 2);
+        const segStart = offset + 4;
+        const text = new TextDecoder('ascii').decode(new Uint8Array(buf, segStart, Math.min(segLen, 200)));
+        if (/Make|Model|Canon|Nikon|Apple|Samsung|Sony|iPhone/i.test(text)) hasCameraTag = true;
+        break;
+      }
+      if ((marker & 0xFF00) !== 0xFF00) break;
+      const len = view.getUint16(offset + 2);
+      offset += 2 + len;
+    }
+  }
+
+  let score = 0;
+  if (!hasExif) { score += 50; reasons.push('No EXIF metadata found — common in AI-generated, screenshotted, or downloaded images.'); }
+  if (hasExif && !hasCameraTag) { score += 20; reasons.push('EXIF present but no camera make/model tag.'); }
+  if (hasExif && hasCameraTag) { reasons.push('Camera make/model tag found — typical of a real photo.'); }
+  if (file.name.match(/screenshot|whatsapp|img-\d{8}-wa/i)) { score += 10; reasons.push('Filename pattern suggests a screenshot or forwarded image (metadata often stripped).'); }
+
+  let label, cls;
+  if (score >= 50) { label = 'LIKELY AI-GENERATED (or metadata stripped)'; cls = 'ai'; }
+  else if (score >= 20) { label = 'UNSURE'; cls = 'unsure'; }
+  else { label = 'LIKELY REAL PHOTO'; cls = 'real'; }
+
+  result.innerHTML = `<div class="verdict ${cls}">${label}</div><ul>${reasons.map(r => '<li>' + r + '</li>').join('')}</ul>`;
+});
+</script>
+</body>
+</html>
